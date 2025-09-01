@@ -5,6 +5,26 @@ from typing import NamedTuple
 import torch
 from scipy.optimize import linear_sum_assignment
 
+def Procrustes(A, B):
+  '''
+  We use the Procrustes problem to find the optimal orthogonal matrix Q
+  which reduces the Frobinius norm 'error' between A and B if applied to A
+  '''
+
+  M = A.T @ B
+  U, _, V = torch.linalg.svd(M)     ## I use the SVD decomposition to find U and V transposed
+  return U @ V                      ## I return Q
+
+
+def proc_weight_matching_MLP(model_a, model_b):
+  proc_dict = {}
+  Q = torch.eye(model_a['layer0.weight'].shape[1], device= 'cuda')
+                
+  for layer in ['layer0.weight', 'layer1.weight', 'layer2.weight', 'layer3.weight']:
+    model_a_layer = Q.T @ model_a[layer].T
+    Q = Procrustes(model_a_layer, model_b[layer].T)
+    proc_dict[layer] = Q
+  return proc_dict
 
 
 class PermutationSpec(NamedTuple):

@@ -9,7 +9,7 @@ from utils.training import test
 from tqdm import tqdm
 import copy
 import matplotlib.pyplot as plt
-from utils.weight_matching import Procustes, proc_weight_matching_MLP
+from utils.weight_matching import Procrustes, proc_weight_matching_MLP
 
 
 def main():

@@ -12,8 +12,8 @@ def Procrustes(A, B):
   '''
 
   M = A.T @ B
-  U, _, V = torch.linalg.svd(M)     ## I use the SVD decomposition to find U and V transposed
-  return U @ V                      ## I return Q
+  U, _, V = (torch.linalg.svd(M))     ## I use the SVD decomposition to find U and V transposed
+  return (U @ V).to('cuda')           ## I return Q
 
 
 def proc_weight_matching_MLP(model_a, model_b):
@@ -21,8 +21,8 @@ def proc_weight_matching_MLP(model_a, model_b):
   Q = torch.eye(model_a['layer0.weight'].shape[1], device= 'cuda')
                 
   for layer in ['layer0.weight', 'layer1.weight', 'layer2.weight', 'layer3.weight']:
-    model_a_layer = Q.T @ model_a[layer].T
-    Q = Procrustes(model_a_layer, model_b[layer].T)
+    model_a_layer = (model_a[layer]).to('cuda') @ Q
+    Q = Procrustes(model_a_layer.T, model_b[layer].T)
     proc_dict[layer] = Q
   return proc_dict
 

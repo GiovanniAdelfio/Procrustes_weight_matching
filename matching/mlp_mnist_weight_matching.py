@@ -64,17 +64,17 @@ def main():
     # procustes weight-matching
     proc_dict = proc_weight_matching_MLP(checkpoint, checkpoint_b)
     
-    model_a_dict = copy.deepcopy(model_a.state_dict())
+    model_a_dict = copy.deepcopy(model_a.cpu().state_dict())
     model_weights = [['layer0.weight', 'layer0.bias'], ['layer1.weight', 'layer1.bias'], ['layer2.weight', 'layer2.bias'], ['layer3.weight', 'layer3.bias'], ['layer4.weight', 'layer4.bias']]
-    for num, layer in enumarate(['layer0.weight', 'layer1.weight', 'layer2.weight', 'layer3.weight']):
-        Q = proc_dict[layer]
+    for num, layer in enumerate(['layer0.weight', 'layer1.weight', 'layer2.weight', 'layer3.weight']):
+        Q = proc_dict[layer].to('cpu')
         for key in model_weights[num]:
-            model_a_dict[key] = (model_a_dict[key].T @ Q).T
-        if num <3 :
-            for key in model_weights[num+1]:
-                model_a_dict[key] = (Q.T @ model_a_dict[key].T).T
+            model_a_dict[key] = Q.T @ (model_a_dict[key]).to('cpu')
+        if  num < 4 :
+            key = model_weights[num+1][0]
+            model_a_dict[key] = model_a_dict[key].to('cpu') @ Q
 
-    model_b_dict = copy.deepcopy(model_b.state_dict())
+    model_b_dict = copy.deepcopy(model_b.cpu().state_dict())
     for lam in tqdm(lambdas):
       naive_p = lerp(lam, model_a_dict, model_b_dict)
       model_b.load_state_dict(naive_p)
@@ -87,8 +87,8 @@ def main():
     
     # naive
     model_b.load_state_dict(checkpoint_b)
-    model_a_dict = copy.deepcopy(model_a.state_dict())
-    model_b_dict = copy.deepcopy(model_b.state_dict())
+    model_a_dict = copy.deepcopy(model_a.cpu().state_dict())
+    model_b_dict = copy.deepcopy(model_b.cpu().state_dict())
     for lam in tqdm(lambdas):
       naive_p = lerp(lam, model_a_dict, model_b_dict)
       model_b.load_state_dict(naive_p)
@@ -101,8 +101,8 @@ def main():
     model_b.load_state_dict(updated_params)
     model_b.cuda()
     model_a.cuda()
-    model_a_dict = copy.deepcopy(model_a.state_dict())
-    model_b_dict = copy.deepcopy(model_b.state_dict())
+    model_a_dict = copy.deepcopy(model_a.cpu().state_dict())
+    model_b_dict = copy.deepcopy(model_b.cpu().state_dict())
     for lam in tqdm(lambdas):
       naive_p = lerp(lam, model_a_dict, model_b_dict)
       model_b.load_state_dict(naive_p)

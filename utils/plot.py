@@ -63,25 +63,25 @@ def plot_interp_acc_2(lambdas, train_acc_interp_naive, test_acc_interp_naive,
           linestyle="solid",
           color="tab:blue",
           linewidth=2,
-          label="Train, permuted interp.")
+          label="Train, permutation weight matching")
   ax.plot(lambdas,
           test_acc_interp_clever,
           linestyle="solid",
           color="tab:orange",
           linewidth=2,
-          label="Test, permuted interp.")
+          label="Test, permutation weight matching")
   ax.plot(lambdas,
           train_acc_interp_proc,
-          linestyle="solid",
-          color="tab:yellow",
+          linestyle="dotted",
+          color="tab:blue",
           linewidth=2,
-          label="Test, permuted interp.")
+          label="Train, interp. via Procustes")
   ax.plot(lambdas,
           test_acc_interp_proc,
-          linestyle="solid",
-          color="tab:green",
+          linestyle="dotted",
+          color="tab:orange",
           linewidth=2,
-          label="Test, permuted interp.")
+          label="Test, interp. via Procustes")
   ax.set_xlabel("$\lambda$")
   ax.set_xticks([0, 1])
   ax.set_xticklabels(["Model $A$", "Model $B$"])

@@ -2,7 +2,7 @@ from asyncio import subprocess
 from models.mlp import MLP
 from utils.weight_matching import mlp_permutation_spec, weight_matching, apply_permutation
 from utils.utils import flatten_params, lerp
-from utils.plot import plot_interp_acc
+from utils.plot import plot_interp_acc, plot_interp_acc_2
 import argparse
 import torch
 from torchvision import datasets, transforms
@@ -72,7 +72,7 @@ def main():
         "--model_a", args.model_a,
         "--model_b", args.model_b,
         "--dataset", "train",
-        "--n_samples", "10000",
+        "--n_samples", "3000",
         "--seed", "1"
     ]
     subprocess.run(cmd, check=True, cwd = project_root)
@@ -102,27 +102,28 @@ def main():
       train_acc_interp_naive.append(acc)
 
     # smart
-    model_b.load_state_dict(updated_params)
-    model_b.cuda()
-    model_a.cuda()
-    model_a_dict = copy.deepcopy(model_a.cpu().state_dict())
-    model_b_dict = copy.deepcopy(model_b.cpu().state_dict())
-    for lam in tqdm(lambdas):
-      naive_p = lerp(lam, model_a_dict, model_b_dict)
-      model_b.load_state_dict(naive_p)
-      test_loss, acc = test(model_b.cuda(), 'cuda', test_loader)
-      test_acc_interp_clever.append(acc)
-      train_loss, acc = test(model_b.cuda(), 'cuda', train_loader)
-      train_acc_interp_clever.append(acc)
+    if not args.post_activation:
+      model_b.load_state_dict(updated_params)
+      model_b.cuda()
+      model_a.cuda()
+      model_a_dict = copy.deepcopy(model_a.cpu().state_dict())
+      model_b_dict = copy.deepcopy(model_b.cpu().state_dict())
+      for lam in tqdm(lambdas):
+        naive_p = lerp(lam, model_a_dict, model_b_dict)
+        model_b.load_state_dict(naive_p)
+        test_loss, acc = test(model_b.cuda(), 'cuda', test_loader)
+        test_acc_interp_clever.append(acc)
+        train_loss, acc = test(model_b.cuda(), 'cuda', train_loader)
+        train_acc_interp_clever.append(acc)
 
-            
-    fig = plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
-                    train_acc_interp_clever, test_acc_interp_clever, train_acc_interp_proc, test_acc_interp_proc)
-    name ="mnist_mlp_activation_matching" 
-    if args.post_activation:
+    if args.post_activation:         
+      fig = plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
+                      train_acc_interp_clever, test_acc_interp_clever, train_acc_interp_proc, test_acc_interp_proc)
+      name ="mnist_mlp_activation_matching" 
+    else:
       name = "mnist_mlp_weight_matching_vs_post_activation"
+      fig = plot_interp_acc_2(lambdas, train_acc_interp_naive, test_acc_interp_naive, train_acc_interp_proc, test_acc_interp_proc)
     plt.savefig(name, dpi=300)
 
 if __name__ == "__main__":
   main()
-

@@ -1,4 +1,4 @@
-from models.mlp import MLP
+from models.mlp import MLP_3
 import argparse
 import torch
 import torch.optim as optim
@@ -8,11 +8,11 @@ from utils.training import train, test
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--batch_size', type=int, default=512)
+    parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--opt', type=str, default='adam')
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument("--lr", type=float, required=True)
-    parser.add_argument('--log-interval', type=int, default=10, metavar='N',help='how many batches to wait before logging training status')
+    parser.add_argument('--log-interval', type=int, default=50, metavar='N',help='how many batches to wait before logging training status')
     args = parser.parse_args()
 
     # Get data

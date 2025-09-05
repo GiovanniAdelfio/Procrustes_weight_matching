@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--model_a", type=str, required=True)
     parser.add_argument("--model_b", type=str, required=True)
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
+    parser.add_argument("--post_activation", action="store_true", help = "changes name of the output file")
     args = parser.parse_args()
 
     # load models
@@ -117,7 +118,11 @@ def main():
             
     fig = plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
                     train_acc_interp_clever, test_acc_interp_clever, train_acc_interp_proc, test_acc_interp_proc)
-    plt.savefig(f"mnist_mlp_weight_matching_interp_accuracy_epoch.png", dpi=300)
+    name ="mnist_mlp_activation_matching" 
+    if args.post_activation:
+      name = "mnist_mlp_weight_matching_vs_post_activation"
+    plt.savefig(name, dpi=300)
 
 if __name__ == "__main__":
   main()
+

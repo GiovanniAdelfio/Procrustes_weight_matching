@@ -116,7 +116,7 @@ def main():
         train_loss, acc = test(model_b.cuda(), 'cuda', train_loader)
         train_acc_interp_clever.append(acc)
 
-    if args.post_activation:         
+    if not args.post_activation:         
       fig = plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
                       train_acc_interp_clever, test_acc_interp_clever, train_acc_interp_proc, test_acc_interp_proc)
       name ="mnist_mlp_activation_matching" 
@@ -127,3 +127,4 @@ def main():
 
 if __name__ == "__main__":
   main()
+

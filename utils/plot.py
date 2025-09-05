@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 
-
 def plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
                     train_acc_interp_clever, test_acc_interp_clever, train_acc_interp_proc, test_acc_interp_proc):
   fig = plt.figure()
@@ -52,7 +51,6 @@ def plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
   ax.legend(loc="lower right", framealpha=0.5)
   fig.tight_layout()
   return fig
-                      
 
 def plot_interp_acc_2(lambdas, train_acc_interp_naive, test_acc_interp_naive, train_acc_interp_proc, test_acc_interp_proc):
   fig = plt.figure()
@@ -92,4 +90,3 @@ def plot_interp_acc_2(lambdas, train_acc_interp_naive, test_acc_interp_naive, tr
   ax.legend(loc="lower right", framealpha=0.5)
   fig.tight_layout()
   return fig
-

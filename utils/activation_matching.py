@@ -59,7 +59,7 @@ def main():
     ap.add_argument("--model_a", required=True, help="file state_dict modello A")
     ap.add_argument("--model_b", required=True, help="file state_dict modello B")
     ap.add_argument("--dataset", choices=["train", "test"], default="train", required=False)
-    ap.add_argument("--n-samples", type=int, default=10000)
+    ap.add_argument("--n_samples", type=int, default=10000)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--apply_relu", action="store_true")
     ap.add_argument("--model", default="mlp", choices=["mlp", "mlp_3"]) 
@@ -120,13 +120,13 @@ def main():
         # 3) Applica Q al modello B (sinistra sul layer i, destra^T sul layer i+1)
         with torch.no_grad():
             # layer corrente: righe = uscite
-            L_b.weight.copy_(Q @ L_b.weight)
+            L_b.weight.copy_(Q.t() @ L_b.weight)
             if L_b.bias is not None:
-                L_b.bias.copy_(Q @ L_b.bias)
+                L_b.bias.copy_(Q.t() @ L_b.bias)
 
             # layer successivo: colonne = input (delle uscite del layer i)
             if next_L_b is not None:
-                next_L_b.weight.copy_(next_L_b.weight @ Q.t())
+                next_L_b.weight.copy_(next_L_b.weight @ Q)
 
     # Salva lo state_dict risultante del modello B
     torch.save(model_b.state_dict(), 'proc_activation_b.pt')

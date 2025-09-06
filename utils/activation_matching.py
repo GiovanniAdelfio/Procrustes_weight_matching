@@ -1,6 +1,4 @@
-# build_activation_state_dict_two_files.py
 import argparse
-from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +6,14 @@ from torchvision import datasets, transforms
 from models.mlp import MLP
 from utils.procrustes import Procrustes
 
+'''
+Applies activation matching to align model_b to model_a, via procrustes.
+It works on MLP models, and aligns on MNIST dataset, saves aligned model as
+"proc_activation_b.pt" or as given "--output".
+
+By default it uses 5000 samples of the train dataset, chosen randomly on a 
+seed 1 permutation, and doesn't apply ReLU before matching.
+'''
 
 def get_linear_layers(model: nn.Module):
     """Ritorna (names, modules) dei layer Linear in ordine di forward."""
@@ -25,17 +31,18 @@ def get_layer_activations(model: nn.Module,
                           loader,
                           device,
                           apply_relu):
-    """Estrae attivazioni (N, D_out) del layer specifico su tutti i batch del loader."""
+    """Extracts activations (N, D_out) of the layer on all the samples in the dataloader"""
     bufs = []
 
     def hook(_, __, out):
+        ''' allows to apply ReLu, if required'''
         out = F.relu(out) if apply_relu else out
         bufs.append(out.detach().cpu())
 
     handle = layer.register_forward_hook(hook)
     model.eval()
     for x, _ in loader:
-        x = x.to(device, non_blocking=True)
+        x = x.to(device, non_blocking=True)             # higher efficiency
         _ = model(x)
     handle.remove()
 
@@ -46,12 +53,12 @@ def get_layer_activations(model: nn.Module,
 
 
 def safe_load(path, device):
-    """Carica in modo sicuro uno state_dict (supporta PyTorch vecchi/nuovi)."""
+    """Loads safely the state_dicts, avoids the warning"""
     try:
-        obj = torch.load(path, map_location=device, weights_only=True)  # PyTorch recente
+        obj = torch.load(path, map_location=device, weights_only=True)  
     except TypeError:
         obj = torch.load(path, map_location=device)  # fallback
-    return obj  # si assume sia direttamente lo state_dict
+    return obj  
 
 
 def main():
@@ -61,13 +68,12 @@ def main():
     ap.add_argument("--dataset", choices=["train", "test"], default="train", required=False)
     ap.add_argument("--n_samples", type=int, default=10000)
     ap.add_argument("--seed", type=int, default=1)
-    ap.add_argument("--apply_relu", action="store_true")
-    ap.add_argument("--model", default="mlp", choices=["mlp", "mlp_3"]) 
+    ap.add_argument("--apply_relu", action="store_true") 
     args = ap.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Dataset MNIST stessa transform del training
+    # Dataset MNIST, same normalization of the training
     transform=transforms.Compose([
       transforms.ToTensor(),
       transforms.Normalize((0.1307,), (0.3081,))
@@ -77,17 +83,17 @@ def main():
     test_ds  = datasets.MNIST(root="./data", train=False, download=True, transform=transform)
     ds = train_ds if args.dataset == "train" else test_ds
 
-    # Seleziona N campioni casuali (riproducibili)
+    # Picks n_samples casual samples, reproducible on the same seed
     g = torch.Generator().manual_seed(args.seed)
     idx = torch.randperm(len(ds), generator=g)[:args.n_samples]
+    
     subset = torch.utils.data.Subset(ds, idx)
     loader = torch.utils.data.DataLoader(subset, batch_size=500,
                                          shuffle=False, pin_memory=True)
 
-    # Modelli
-    if args.model == "mlp":
-        model_a = MLP().to(device)
-        model_b = MLP().to(device)
+    # Models
+    model_a = MLP().to(device)
+    model_b = MLP().to(device)
 
     sd_a = safe_load(args.model_a, device)
     sd_b = safe_load(args.model_b, device)
@@ -95,43 +101,42 @@ def main():
     model_a.load_state_dict(sd_a)
     model_b.load_state_dict(sd_b)
 
-    # Layer Linear in ordine
+    # Saves the layers of the models, and their corresponding names
     names_a, layers_a = get_linear_layers(model_a)
     names_b, layers_b = get_linear_layers(model_b)
-    assert [type(m) for m in layers_a] == [type(m) for m in layers_b], \
-        "Strutture dei modelli A e B non corrispondono."
 
-    # Indice ultimo layer da allineare
+    # index of the last layer to align 
     last_align_idx = len(layers_b) - 2
     
-        # --- Matching layer-per-layer con Procrustes ---
+        # --- Matching layer-per-layer with Procrustes ---
     for i in range(0, last_align_idx + 1):
         L_a = layers_a[i]
         L_b = layers_b[i]
         next_L_b = layers_b[i + 1] if i + 1 < len(layers_b) else None
 
-        # 1) Attivazioni (stesso subset) — ricalcolate dopo ogni aggiornamento di B
+        # Activations (same subset) — recalculated after every update on B
         A = get_layer_activations(model_a, L_a, loader, device, args.apply_relu)
         B = get_layer_activations(model_b, L_b, loader, device, args.apply_relu)
 
-        # 2) Procrustes: trova Q (D_out x D_out) tale che B Q ≈ A
+        # Procrustes: finds Q (D_out x D_out) so that B Q ≈ A
         Q = Procrustes(B, A)  
 
-        # 3) Applica Q al modello B (sinistra sul layer i, destra^T sul layer i+1)
+        # Applies Q to model B 
         with torch.no_grad():
-            # layer corrente: righe = uscite
+            # current layer
             L_b.weight.copy_(Q.t() @ L_b.weight)
             if L_b.bias is not None:
                 L_b.bias.copy_(Q.t() @ L_b.bias)
 
-            # layer successivo: colonne = input (delle uscite del layer i)
+            # following layer
             if next_L_b is not None:
                 next_L_b.weight.copy_(next_L_b.weight @ Q)
 
-    # Salva lo state_dict risultante del modello B
+    # Saves the aligned model's state dict
     torch.save(model_b.state_dict(), 'proc_activation_b.pt')
     print(f"Salvato modello B allineato in: proc_activation_b.pt")
 
 
 if __name__ == "__main__":
     main()
+

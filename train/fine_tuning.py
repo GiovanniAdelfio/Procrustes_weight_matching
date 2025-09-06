@@ -5,10 +5,17 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from utils.training import train, test
 
+'''
+Script for fine-tuning an MLP on the MNIST dataset.
+
+By default it runs for 2 epochs, with learning rate 1e-4, batch 
+size 512, adam optimizer and logging every 50 iterations.
+'''
+
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("--model", type=str, help="Model file name")
-  parser.add_argument("--database", type=str, choices={"mnist", "cifar10"}, default="mnist", help="Mnist or Cifar10")
   parser.add_argument('--batch_size', type=int, default=512)
   parser.add_argument('--epochs', type=int, default = 3)
   parser.add_argument("--lr", type=float, default = 1e-4)
@@ -29,29 +36,36 @@ def main():
                       'shuffle': True}
       train_kwargs.update(cuda_kwargs)
       test_kwargs.update(cuda_kwargs)
-  if args.database == "mnist":
-    transform=transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-        ])
-    dataset1 = datasets.MNIST('../data', train=True, download=True,
-                        transform=transform)
-    dataset2 = datasets.MNIST('../data', train=False,
-                        transform=transform)
-    train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
-    test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
+  # import and normalize MNIST database
+  transform=transforms.Compose([
+      transforms.ToTensor(),
+      transforms.Normalize((0.1307,), (0.3081,))
+      ])
+  dataset1 = datasets.MNIST('../data', train=True, download=True,
+                      transform=transform)
+  dataset2 = datasets.MNIST('../data', train=False,
+                      transform=transform)
+
+  # create dataloaders
+  train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
+  test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
+
+  # initialiaze and load weights into the model for training
   state_dict = torch.load(args.model, map_location=device)
   model = MLP().to(device)
   model.load_state_dict(state_dict)
 
   optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
+  # training and tesy
   for epoch in range(1, args.epochs + 1):
       train(args, model, device, train_loader, optimizer, epoch)
       test(model, device, test_loader)
-
-  torch.save(model.state_dict(), f"{args.database}_mlp_finetuned.pt")
+    
+  # saving the finetuned model with the original name + finetuned
+  torch.save(model.state_dict(), f"{args.model[:-3]}_mlp_finetuned.pt")
+  print(f"Model saved to {args.model[:-3]}_mlp_finetuned.pt")
 
 
 if __name__ == "__main__":

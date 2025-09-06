@@ -27,7 +27,7 @@ def main():
     parser.add_argument("--fine_tune", action="store_true", help = "Fine-tunes model B after procrustes activation_matching")
     args = parser.parse_args()
 
-    # load models
+    # loading models
     model_a = MLP()
     model_b = MLP()
 
@@ -35,7 +35,8 @@ def main():
     model_a.load_state_dict(checkpoint)   
     checkpoint_b = torch.load(args.model_b)
     model_b.load_state_dict(checkpoint_b)
-    
+
+    # Calculating and applying permutations for Git re-basin permutation weight-matching
     permutation_spec = mlp_permutation_spec(4)
     final_permutation = weight_matching(permutation_spec,
                                         flatten_params(model_a), flatten_params(model_b))
@@ -44,7 +45,7 @@ def main():
     updated_params = apply_permutation(permutation_spec, final_permutation, flatten_params(model_b))
 
     
-    # test against mnist
+    # Loading and normalizing MNIST dataset
     transform=transforms.Compose([
       transforms.ToTensor(),
       transforms.Normalize((0.1307,), (0.3081,))
@@ -60,6 +61,7 @@ def main():
     test_loader = torch.utils.data.DataLoader(dataset, **test_kwargs)
     lambdas = torch.linspace(0, 1, steps=25)
 
+    
     test_acc_interp_clever = []
     test_acc_interp_naive = []
     test_acc_interp_proc = []
@@ -68,9 +70,7 @@ def main():
     train_acc_interp_proc = []
 
 
-
-
-    # procustes activation-matching
+    # procustes activation-matching (with fine-tuning if store_true)
     import subprocess, sys
     project_root = r"/content/Procrustes_weight_matching"             
     cmd = [
@@ -108,7 +108,7 @@ def main():
       train_acc_interp_proc.append(acc)
 
     
-    # naive
+    # SLERP
     model_b.load_state_dict(checkpoint_b)
     model_a_dict = copy.deepcopy(model_a.cpu().state_dict())
     model_b_dict = copy.deepcopy(model_b.cpu().state_dict())
@@ -120,7 +120,7 @@ def main():
       train_loss, acc = test(model_b.cuda(), 'cuda', train_loader)
       train_acc_interp_naive.append(acc)
 
-    # smart
+    # Git re-basin permutation weight matching
     if not args.post_activation:
       model_b.load_state_dict(updated_params)
       model_b.cuda()
@@ -135,10 +135,13 @@ def main():
         train_loss, acc = test(model_b.cuda(), 'cuda', train_loader)
         train_acc_interp_clever.append(acc)
 
+
+    # saving graph as png, name based on wether finetuned
     if not args.post_activation:         
       fig = plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
                       train_acc_interp_clever, test_acc_interp_clever, train_acc_interp_proc, test_acc_interp_proc)
       name ="mnist_mlp_activation_matching" 
+        
     else:
       name = "mnist_mlp_weight_matching_vs_post_activation"
       fig = plot_interp_acc_2(lambdas, train_acc_interp_naive, test_acc_interp_naive, train_acc_interp_proc, test_acc_interp_proc)
@@ -148,4 +151,5 @@ def main():
 
 if __name__ == "__main__":
   main()
+
 

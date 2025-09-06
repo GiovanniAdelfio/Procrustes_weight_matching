@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 ''' 
 Takes as input two models, and a store_true value: "fine_tune", saves as png a graph which compares interpolation accuracies between model_a and model_b, 
-using activation_matching, SLERP and Git re-basin permutation weight_matching. If post_activation is given, it is used to perform post activation on an 
+using activation_matching (with fine tuning if True), SLERP and Git re-basin permutation weight_matching. If post_activation is given, it is used to perform post activation on an 
 already aligned model_b and save a png of a graph comparing the interpolation accuracies of original model and post-activated one
 '''
 
@@ -148,3 +148,4 @@ def main():
 
 if __name__ == "__main__":
   main()
+

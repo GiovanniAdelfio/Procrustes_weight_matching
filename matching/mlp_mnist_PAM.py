@@ -1,7 +1,7 @@
 from asyncio import subprocess
 from models.mlp import MLP
 from utils.weight_matching import mlp_permutation_spec, weight_matching, apply_permutation
-from utils.utils import flatten_params, lerp
+from utils.utils import flatten_params, slerp_state_dict, lerp
 from utils.plot import plot_interp_acc, plot_interp_acc_2
 import argparse
 import torch
@@ -12,7 +12,11 @@ import copy
 import matplotlib.pyplot as plt
 
 
-''' Funziona in maniera pessima, principalmente perchè ReLU non è ortogonalmente simmetrica, ma è simmetrica rispetto a permutazioni'''
+''' 
+Takes as input two models, and a store_true value: "fine_tune", saves as png a graph which compares interpolation accuracies between model_a and model_b, 
+using activation_matching, SLERP and Git re-basin permutation weight_matching. If post_activation is given, it is used to perform post activation on an 
+already aligned model_b and save a png of a graph comparing the interpolation accuracies of original model and post-activated one
+'''
 
 def main():
     parser = argparse.ArgumentParser()
@@ -20,11 +24,13 @@ def main():
     parser.add_argument("--model_b", type=str, required=True)
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
     parser.add_argument("--post_activation", action="store_true", help = "changes name of the output file")
+    parser.add_argument("--fine_tune", action="store_true", help = "Fine-tunes model B after procrustes activation_matching")
     args = parser.parse_args()
 
     # load models
     model_a = MLP()
     model_b = MLP()
+
     checkpoint = torch.load(args.model_a)
     model_a.load_state_dict(checkpoint)   
     checkpoint_b = torch.load(args.model_b)
@@ -66,18 +72,31 @@ def main():
 
     # procustes activation-matching
     import subprocess, sys
-    project_root = r"D:\Machine Learning\Machine_Learning_main"              ## da cambiare
+    project_root = r"/content/Procrustes_weight_matching"             
     cmd = [
         sys.executable, "-m", "utils.activation_matching",
         "--model_a", args.model_a,
         "--model_b", args.model_b,
         "--dataset", "train",
-        "--n_samples", "3000",
+        "--n_samples", "5000",
         "--seed", "1"
     ]
     subprocess.run(cmd, check=True, cwd = project_root)
+    model = 'proc_activation_b'
 
-    model_b_dict = torch.load('proc_activation_B.pt', map_location='cpu')
+    if args.fine_tune:
+      cmd = [
+          sys.executable, "-m", "train.fine_tuning",
+          "--model", model + ".pt",
+          "--database", "mnist",
+          "--batch_size", "512",
+          "--epochs", "2 ",
+          "--lr", "1e-4",
+          "--log-interval", "50"
+      ]
+      model += "_mlp_finetuned"
+      subprocess.run(cmd, check=True, cwd = project_root)
+    model_b_dict = torch.load(model + ".pt", map_location='cpu')
     model_a_dict = copy.deepcopy(model_a.cpu().state_dict())
 
     for lam in tqdm(lambdas):
@@ -94,7 +113,7 @@ def main():
     model_a_dict = copy.deepcopy(model_a.cpu().state_dict())
     model_b_dict = copy.deepcopy(model_b.cpu().state_dict())
     for lam in tqdm(lambdas):
-      naive_p = lerp(lam, model_a_dict, model_b_dict)
+      naive_p = slerp_state_dict(lam, model_a_dict, model_b_dict)
       model_b.load_state_dict(naive_p)
       test_loss, acc = test(model_b.cuda(), 'cuda', test_loader)
       test_acc_interp_naive.append(acc)
@@ -123,8 +142,9 @@ def main():
     else:
       name = "mnist_mlp_weight_matching_vs_post_activation"
       fig = plot_interp_acc_2(lambdas, train_acc_interp_naive, test_acc_interp_naive, train_acc_interp_proc, test_acc_interp_proc)
-    plt.savefig(name, dpi=300)
+    if args.fine_tune:
+      name += "_finetuned"
+    plt.savefig(name + ".png", dpi=300)
 
 if __name__ == "__main__":
   main()
-

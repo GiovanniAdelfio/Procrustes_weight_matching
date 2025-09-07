@@ -1,7 +1,12 @@
 import torch.nn.functional as F
 import torch
 
+
 def train(args, model, device, train_loader, optimizer, epoch, softmax=False):
+    '''
+    Trains the given model on the given data_loader with the given model
+    for the given number of epochs. Prints train accuracy every logs_interval epochs.
+    '''
     model.train()
     correct = 0
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -25,6 +30,10 @@ def train(args, model, device, train_loader, optimizer, epoch, softmax=False):
 
 
 def test(model, device, test_loader, softmax=False):
+    '''
+    Tests the given model on the given Data_loader, 
+    returns loss and accuracy
+    '''
     model.eval()
     test_loss = 0
     correct = 0

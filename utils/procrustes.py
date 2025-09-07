@@ -6,11 +6,8 @@ def apply_alignment_MLP(model, proc_dict):
   it gives as output the same state_dict_model after applying the orthogonals matrices to their corresponding layers
   '''
 
-  idx = 4
-  if 'layer4.weight' in model.keys():
-    idx+=1
-  model_weights = [['layer0.weight', 'layer0.bias'], ['layer1.weight', 'layer1.bias'], ['layer2.weight', 'layer2.bias'], ['layer3.weight', 'layer3.bias'], ['layer4.weight', 'layer4.bias']][:idx]
-  for num, layer in enumerate(['layer0.weight', 'layer1.weight', 'layer2.weight', 'layer3.weight'][:idx-1]):
+ model_weights = [['layer0.weight', 'layer0.bias'], ['layer1.weight', 'layer1.bias'], ['layer2.weight', 'layer2.bias'], ['layer3.weight', 'layer3.bias'], ['layer4.weight', 'layer4.bias']]
+  for num, layer in enumerate(['layer0.weight', 'layer1.weight', 'layer2.weight', 'layer3.weight']):
       Q = proc_dict[layer].to('cpu')
       for key in model_weights[num]:
           model[key] = Q.T @ (model[key]).to('cpu')
